@@ -7,8 +7,10 @@ pub struct Iclock {
     pub port: u16,
     pub serialNumber: String,
     pub nameDispo: Option<String>,
-    pub messageError: Option<String>,
     pub status: bool,
+    pub connectionStatus: Option<bool>,
+    pub lastConnectionTime: Option<String>,
+    pub messageError: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

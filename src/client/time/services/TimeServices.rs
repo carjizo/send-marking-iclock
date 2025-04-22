@@ -1,4 +1,4 @@
-use crate::client::time::models::TimeModels::{MarkStatusRequest, MarkStatusResponse, CompanyConfigResponse};
+use crate::client::time::models::TimeModels::{MarkStatusRequest, MarkStatusResponse, CompanyConfigResponse, ConectionStatusRequest, ConectionStatusResponse};
 use reqwest::{header::{HeaderMap, HeaderValue, CONTENT_TYPE}};
 use crate::StatusCode;
 use crate::{CompanyConfiguration, Config};
@@ -59,4 +59,35 @@ pub async fn fetch_company_config(id_company: &str) -> Result<CompanyConfigurati
 
     let parsed: CompanyConfigResponse = res.json().await?;
     Ok(parsed.response)
+}
+
+pub async fn update_conection_status(request_data: ConectionStatusRequest) -> Result<(StatusCode, Option<ConectionStatusResponse>), Box<dyn std::error::Error>> {
+
+    let env = Config::from_env();
+
+    let url =  env.domain_time + "/time/iclock/flow-markings/update-conection-status";
+
+    let mut headers = HeaderMap::new();
+    headers.insert("x-api-key", HeaderValue::from_str(&env.api_key)?);
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+    let client = reqwest::Client::new();
+
+    log_to_csv("INFO", &format!("url: {:?}", url));
+
+    let res = client
+        .put(url)
+        .headers(headers)
+        .json(&request_data)
+        .send()
+        .await?;
+
+    let status = res.status();
+
+    if status == StatusCode::OK {
+        let json = res.json::<ConectionStatusResponse>().await?;
+        Ok((status, Some(json)))
+    } else {
+        Ok((status, None))
+    }
 }

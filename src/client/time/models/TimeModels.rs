@@ -20,8 +20,23 @@ pub struct MarkStatusResponse {
     pub mensajeRespuesta: Option<String>,
 }
 
-
 #[derive(Deserialize, Debug)]
 pub struct CompanyConfigResponse {
     pub response: CompanyConfiguration,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ConectionStatusRequest {
+    pub ruc: String,
+    pub idCompany: String,
+    pub serialNumber: String,
+    pub messageError: String,
+    pub connectionStatus: bool,
+    pub lastConnectionTime: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ConectionStatusResponse {
+    pub codigoRespuesta: Option<String>,
+    pub mensajeRespuesta: Option<String>,
 }

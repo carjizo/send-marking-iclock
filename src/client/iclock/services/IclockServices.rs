@@ -1,14 +1,12 @@
 use reqwest::{header::{HeaderMap, HeaderValue, CONTENT_TYPE}};
-use chrono::{Duration as ChronoDuration, Utc};
-use chrono_tz::America::Lima;
 use std::collections::HashMap;
 use crate::client::iclock::models::IClockModels::{TransactionResponse, TokenAuthResponse, TokenAuthRequest};
 use crate::StatusCode;
 use crate::log_to_csv;
 use crate::Config;
+use crate::{Utc,ChronoDuration, Lima};
 
 pub async fn get_transactions(jwt: Option<String>, port: u16, serial_number: String, time_config: i64) -> Result<(StatusCode, Option<TransactionResponse>), reqwest::Error> {
-    
     let env = Config::from_env();
     let ip_server: String = env.ip_server.clone(); 
     
