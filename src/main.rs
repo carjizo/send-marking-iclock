@@ -91,13 +91,17 @@ async fn main() {
         return;
     }
 
-    let handles = iclocks.into_iter().map(|iclock| {
-        let id_company: String = id_company.clone();
-        let ruc_company: String = ruc_company.clone();
-        tokio::spawn(async move {
-            handle_port_loop(iclock.port, iclock.serialNumber, id_company, ruc_company).await;
-        })
-    });
+    let handles = iclocks
+        .into_iter()
+        .filter(|iclock| iclock.status == true)
+        .map(|iclock| {
+            let id_company: String = id_company.clone();
+            let ruc_company: String = ruc_company.clone();
+
+            tokio::spawn(async move {
+                handle_port_loop(iclock.port, iclock.serialNumber, id_company, ruc_company).await;
+            })
+        });
 
     join_all(handles).await;
 }
