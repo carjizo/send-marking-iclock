@@ -115,7 +115,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
             Err(e) => {
                 println!("Error al obtener configuración de empresa: {}", e);
                 log_to_csv("ERROR", &format!("Error al obtener configuración de empresa: {}", e));
-                return;
+                continue;
             }
         };
         let iclocks: Vec<Iclock> = company.iclocks;
@@ -169,7 +169,6 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                             println!("Puerto {}: Error al actualizar estado: {}", port, e);
                         }
                     }
-                    
                 }
                 
                 let data_conection = ConectionStatusRequest {
