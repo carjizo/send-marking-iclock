@@ -219,7 +219,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                     messageError: e.to_string(),
                     serialNumber: serial_number.clone(),
                     connectionStatus: false,
-                    lastConnectionTime: time_str
+                    lastConnectionTime: "".to_string(),
                 };
 
                 match update_conection_status(data_conection).await {

@@ -73,7 +73,7 @@ pub async fn update_conection_status(request_data: ConectionStatusRequest) -> Re
 
     let client = reqwest::Client::new();
 
-    log_to_csv("INFO", &format!("url: {:?}", url));
+    log_to_csv("INFO", &format!("url: {:?}  body: {:?}", url, request_data));
 
     let res = client
         .put(url)
