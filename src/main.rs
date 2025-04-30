@@ -122,10 +122,11 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                 continue;
             }
         };
+        let mut interval_config: u64 = company.timeConfig;
         let iclocks: Vec<Iclock> = company.iclocks;
         let mut lastConnectionTime: Option<String> = Some("".to_string());
         for iclock in iclocks {
-            if iclock.port == port {
+            if iclock.serialNumber == serial_number {
                 lastConnectionTime = iclock.lastConnectionTime;
             }
         }
@@ -138,7 +139,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
         
                 let diff: chrono::TimeDelta = now - last;
                 let minutes = diff.num_minutes();
-                if minutes > 1  {
+                if minutes > ((interval_config/60) + 1).try_into().unwrap()  {
                     time_config = minutes;
                 }
             }
@@ -234,12 +235,12 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                     }
                 }
                 println!("Puerto {}: Error en la solicitud: {}", port, e);
-                time_config = 10;
+                time_config = 2;
             }
         }
 
-        sleep(Duration::from_secs(12)).await;
-        log_to_csv("INFO", &format!("Puerto {}: Esperando 30s para la siguiente petición", port));
+        sleep(Duration::from_secs(interval_config)).await;
+        log_to_csv("INFO", &format!("Puerto {}: Esperando {}s para la siguiente petición", port, interval_config));
     }
 }
 

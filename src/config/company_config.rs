@@ -20,6 +20,7 @@ pub struct CompanyConfiguration {
     pub razonSocial: String,
     pub iclocks: Vec<Iclock>,
     pub status: bool,
+    pub timeConfig: u64,
 }
 
 impl CompanyConfiguration {
