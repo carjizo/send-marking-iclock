@@ -26,7 +26,7 @@ impl Config {
         let ip_server: String = env::var("IP_SERVER").unwrap_or_else(|_| "".to_string());
         let usser_biotime: String = env::var("USSER_BIOTIME").unwrap_or_else(|_| "".to_string());
         let password_biotime: String = env::var("PASSWORD_BIOTIME").unwrap_or_else(|_| "".to_string());
-
+        
         let api_key = match (
             env::var("AES_KEY"),
             env::var("AES_IV"),
@@ -48,5 +48,5 @@ impl Config {
         };
 
         Config { id_company, api_key, iclock_config_path, domain_time, ip_server, usser_biotime, password_biotime }
-    }
+    }   
 }
