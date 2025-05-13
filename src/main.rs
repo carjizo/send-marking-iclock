@@ -11,7 +11,7 @@ use chrono::{Duration as ChronoDuration, Utc, NaiveDateTime};
 use chrono_tz::America::Lima;
 
 use client::iclock::services::IclockServices::{get_transactions, jwt_api_token_auth};
-use client::time::services::TimeServices::{update_mark_status, fetch_company_config, update_conection_status};
+use client::time::services::TimeServices::{update_mark_status, fetch_companys_configs, fetch_company_config, update_conection_status};
 use client::time::models::TimeModels::{MarkStatusRequest, ConectionStatusRequest};
 use config::config::Config;
 use config::company_config::{CompanyConfiguration,Iclock};
@@ -25,8 +25,8 @@ async fn main() {
     log_to_csv("INFO", &"Obteniendo variables de entorno".to_string());
     
     let env = Config::from_env();
-    let id_company: String = env.id_company.clone();
-    if id_company.is_empty() {
+    let ids_companys: Vec<String> = env.ids_companys.clone();
+    if ids_companys.len() < 1 {
         return;
     }
     
@@ -50,19 +50,19 @@ async fn main() {
         return;
     }
     
-    println!("Variables de entorno: ID_COMPANY: {}, DOMAIN_TIME: {}, ICLOCK_CONFIG_PATH: {}", id_company, domain_time, iclock_config_path);
-    log_to_csv("INFO", &format!("Variables de entorno: ID_COMPANY: {}, DOMAIN_TIME: {}, ICLOCK_CONFIG_PATH: {}", id_company, domain_time, iclock_config_path));
+    println!("Variables de entorno: IDS_COMPANYS: {:?}, DOMAIN_TIME: {}, ICLOCK_CONFIG_PATH: {}", ids_companys, domain_time, iclock_config_path);
+    log_to_csv("INFO", &format!("Variables de entorno: IDS_COMPANYS: {:?}, DOMAIN_TIME: {}, ICLOCK_CONFIG_PATH: {}", ids_companys, domain_time, iclock_config_path));
     
-    let company: CompanyConfiguration = match fetch_company_config(&id_company).await {
+    let companies = match fetch_companys_configs(ids_companys).await {
         Ok(data) => data,
         Err(e) => {
-            eprintln!("Error al obtener configuración de empresa: {}", e);
-            log_to_csv("ERROR", &format!("Error al obtener configuración de empresa: {}", e));
+            eprintln!("Error al obtener configuraciones de empresa: {}", e);
+            log_to_csv("ERROR", &format!("Error al obtener configuraciones de empresa: {}", e));
             return;
         }
     };
     
-    if let Err(e) = CompanyConfiguration::save_to_file(&company, &iclock_config_path) {
+    if let Err(e) = CompanyConfiguration::save_to_file(&companies, &iclock_config_path) {
         eprintln!("Error al guardar configuración: {}", e);
         log_to_csv("ERROR", &format!("Error al guardar configuración: {}", e));
         return;
@@ -70,32 +70,29 @@ async fn main() {
 
     println!("Escribiendo archivo iclock_configuration.json");
     log_to_csv("INFO", &"Escribiendo archivo iclock_configuration.json".to_string());
-    let mut ruc_company: String = "".to_string(); 
-    let mut iclocks: Vec<Iclock> = vec![];
-    match CompanyConfiguration::from_file(&iclock_config_path) {
-        Ok(config) => {
-            println!("Empresa: {}", config.razonSocial);
-            log_to_csv("INFO", &format!("Contenido archivo: {:?}", config));
-            iclocks = config.iclocks;
-            ruc_company = config.ruc;
-        }
-        Err(e) => {
-            eprintln!("Error al leer archivo JSON: {}", e);
-            log_to_csv("ERROR", &format!("Error al leer archivo JSON: {}", e));
-        }
-    }
 
-    if iclocks.is_empty() {
-        println!("No se configuraron los parameters en DynamoDB");
-        log_to_csv("ERROR", &"No se configuraron los parameters en DynamoDB".to_string());
-        return;
-    }
+    for company in companies {
+        println!("Configuración para empresa: {:?}", company.razonSocial);
+        log_to_csv("INFO", &format!("Configuración para empresa: {}", company.razonSocial));
+        
+        let mut ruc_company: String = "".to_string(); 
+        let mut idcompany: String = "".to_string(); 
+        let mut iclocks: Vec<Iclock> = vec![];
+        idcompany = company.idCompany;
+        iclocks = company.iclocks;
+        ruc_company = company.ruc;
 
-    let handles = iclocks
+        if iclocks.is_empty() {
+            println!("No se configuraron los parameters en DynamoDB");
+            log_to_csv("ERROR", &"No se configuraron los parameters en DynamoDB".to_string());
+            return;
+        }
+
+        let handles = iclocks
         .into_iter()
         .filter(|iclock| iclock.status == true)
         .map(|iclock| {
-            let id_company: String = id_company.clone();
+            let id_company: String = idcompany.clone();
             let ruc_company: String = ruc_company.clone();
 
             tokio::spawn(async move {
@@ -103,7 +100,9 @@ async fn main() {
             })
         });
 
-    join_all(handles).await;
+        join_all(handles).await;
+    }
+
 }
 
 
@@ -122,6 +121,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                 continue;
             }
         };
+
         let mut interval_config: u64 = company.timeConfig;
         let iclocks: Vec<Iclock> = company.iclocks;
         let mut lastConnectionTime: Option<String> = Some("".to_string());

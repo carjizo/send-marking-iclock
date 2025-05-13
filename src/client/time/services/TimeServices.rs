@@ -1,8 +1,10 @@
-use crate::client::time::models::TimeModels::{MarkStatusRequest, MarkStatusResponse, CompanyConfigResponse, ConectionStatusRequest, ConectionStatusResponse};
+use crate::client::time::models::TimeModels::{AllCompanysConfigResponse, CompanyConfigResponse, ConectionStatusRequest, ConectionStatusResponse, MarkStatusRequest, MarkStatusResponse};
 use reqwest::{header::{HeaderMap, HeaderValue, CONTENT_TYPE}};
 use crate::StatusCode;
 use crate::{CompanyConfiguration, Config};
 use crate::log_to_csv;
+
+use serde_json::json;
 
 pub async fn update_mark_status(request_data: MarkStatusRequest) -> Result<(StatusCode, Option<MarkStatusResponse>), Box<dyn std::error::Error>> {
 
@@ -59,6 +61,35 @@ pub async fn fetch_company_config(id_company: &str) -> Result<CompanyConfigurati
 
     let parsed: CompanyConfigResponse = res.json().await?;
     Ok(parsed.response)
+}
+
+pub async fn fetch_companys_configs(ids_companys: Vec<String>) -> Result<Vec<CompanyConfiguration>, Box<dyn std::error::Error>> {
+    let env = Config::from_env();
+
+    let url =  env.domain_time + "/time/iclock/configurations";
+    
+    let mut headers = HeaderMap::new();
+    headers.insert("x-api-key", HeaderValue::from_str(&env.api_key)?);
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+    let request_data = json!({ "idCompanys": ids_companys });
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(url)
+        .headers(headers)
+        .json(&request_data)
+        .send()
+        .await?;
+
+    let status = res.status();
+
+    if status == StatusCode::OK {
+        let json = res.json::<AllCompanysConfigResponse>().await?;
+        Ok(json.response)
+    } else {
+        Ok(vec![]) // o puedes usar Err("error") si lo prefieres
+    }
 }
 
 pub async fn update_conection_status(request_data: ConectionStatusRequest) -> Result<(StatusCode, Option<ConectionStatusResponse>), Box<dyn std::error::Error>> {

@@ -7,7 +7,7 @@ use base64::decode;
 type Aes128Cbc = Cbc<Aes128, Pkcs7>;
 
 pub struct Config {
-    pub id_company: String,
+    pub ids_companys: Vec<String>,
     pub api_key: String,
     pub iclock_config_path: String,
     pub domain_time: String,
@@ -19,8 +19,10 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Self {
         dotenv::dotenv().ok();
-
-        let id_company: String = env::var("ID_COMPANY").unwrap_or_else(|_| "".to_string());
+        
+        let raw = env::var("IDS_COMPANYS").expect("ID_COMPANY not found");
+        let ids_companys: Vec<String> = serde_json::from_str(&raw).expect("Failed to parse ID_COMPANY");
+        // let id_company: String = env::var("ID_COMPANY").unwrap_or_else(|_| "".to_string());
         let iclock_config_path: String = env::var("ICLOCK_CONFIG_PATH").unwrap_or_else(|_| "".to_string());
         let domain_time: String = env::var("DOMAIN_TIME").unwrap_or_else(|_| "".to_string());
         let ip_server: String = env::var("IP_SERVER").unwrap_or_else(|_| "".to_string());
@@ -47,6 +49,6 @@ impl Config {
             _ => "".to_string(),
         };
 
-        Config { id_company, api_key, iclock_config_path, domain_time, ip_server, usser_biotime, password_biotime }
+        Config { ids_companys, api_key, iclock_config_path, domain_time, ip_server, usser_biotime, password_biotime }
     }   
 }

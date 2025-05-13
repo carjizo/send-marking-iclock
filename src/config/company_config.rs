@@ -24,7 +24,7 @@ pub struct CompanyConfiguration {
 }
 
 impl CompanyConfiguration {
-    pub fn save_to_file<P: AsRef<Path>>(config: &CompanyConfiguration, path: P) -> std::io::Result<()> {
+    pub fn save_to_file<P: AsRef<Path>>(config: &Vec<CompanyConfiguration>, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(&path)?;
         file.write_all(b"{}")?;
         drop(file);

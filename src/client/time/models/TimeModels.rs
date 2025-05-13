@@ -25,6 +25,11 @@ pub struct CompanyConfigResponse {
     pub response: CompanyConfiguration,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct AllCompanysConfigResponse {
+    pub response: Vec<CompanyConfiguration>,
+}
+
 #[derive(Serialize, Debug)]
 pub struct ConectionStatusRequest {
     pub ruc: String,
