@@ -33,6 +33,9 @@ pub async fn update_mark_status(request_data: MarkStatusRequest) -> Result<(Stat
     if status == StatusCode::OK {
         let json = res.json::<MarkStatusResponse>().await?;
         Ok((status, Some(json)))
+    } else if status == StatusCode::BAD_GATEWAY {
+        let json = res.json::<MarkStatusResponse>().await?;
+        Ok((status, Some(json)))
     } else {
         Ok((status, None))
     }

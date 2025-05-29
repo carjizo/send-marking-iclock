@@ -44,11 +44,11 @@ async fn main() {
     let domain_time: String = env.domain_time.clone();
     let iclock_config_path: String = env.iclock_config_path.clone();
 
-    if !check_internet_connection().await {
-        println!("Error de conexión a internet");
-        log_to_csv("ERROR", &"Error de conexión a internet".to_string());
-        return;
-    }
+    // if !check_internet_connection().await {
+    //     println!("Error de conexión a internet");
+    //     log_to_csv("ERROR", &"Error de conexión a internet".to_string());
+    //     return;
+    // }
     
     println!("Variables de entorno: IDS_COMPANYS: {:?}, DOMAIN_TIME: {}, ICLOCK_CONFIG_PATH: {}", ids_companys, domain_time, iclock_config_path);
     log_to_csv("INFO", &format!("Variables de entorno: IDS_COMPANYS: {:?}, DOMAIN_TIME: {}, ICLOCK_CONFIG_PATH: {}", ids_companys, domain_time, iclock_config_path));
@@ -71,37 +71,44 @@ async fn main() {
     println!("Escribiendo archivo iclock_configuration.json");
     log_to_csv("INFO", &"Escribiendo archivo iclock_configuration.json".to_string());
 
+    let mut company_tasks = vec![];
+
     for company in companies {
-        println!("Configuración para empresa: {:?}", company.razonSocial);
-        log_to_csv("INFO", &format!("Configuración para empresa: {}", company.razonSocial));
-        
-        let mut ruc_company: String = "".to_string(); 
-        let mut idcompany: String = "".to_string(); 
-        let mut iclocks: Vec<Iclock> = vec![];
-        idcompany = company.idCompany;
-        iclocks = company.iclocks;
-        ruc_company = company.ruc;
+        let task = tokio::spawn(async move {
+            println!("Configuración para empresa: {:?}", company.razonSocial);
+            log_to_csv("INFO", &format!("Configuración para empresa: {}", company.razonSocial));
 
-        if iclocks.is_empty() {
-            println!("No se configuraron los parameters en DynamoDB");
-            log_to_csv("ERROR", &"No se configuraron los parameters en DynamoDB".to_string());
-            return;
-        }
+            let idcompany = company.idCompany.clone();
+            let ruc_company = company.ruc.clone();
+            let iclocks = company.iclocks;
 
-        let handles = iclocks
-        .into_iter()
-        .filter(|iclock| iclock.status == true)
-        .map(|iclock| {
-            let id_company: String = idcompany.clone();
-            let ruc_company: String = ruc_company.clone();
+            if iclocks.is_empty() {
+                println!("No se configuraron los parameters en DynamoDB");
+                log_to_csv("ERROR", &"No se configuraron los parameters en DynamoDB".to_string());
+                return;
+            }
 
-            tokio::spawn(async move {
-                handle_port_loop(iclock.port, iclock.serialNumber, id_company, ruc_company).await;
-            })
+            let handles = iclocks
+                .into_iter()
+                .filter(|iclock| iclock.status == true)
+                .map(|iclock| {
+                    let id_company = idcompany.clone();
+                    let ruc_company = ruc_company.clone();
+
+                    tokio::spawn(async move {
+                        handle_port_loop(iclock.port, iclock.serialNumber, id_company, ruc_company).await;
+                    })
+                });
+
+            // Esperamos a que todas las tareas de iclocks de esta empresa empiecen y se mantengan activas
+            join_all(handles).await;
         });
 
-        join_all(handles).await;
+        company_tasks.push(task);
     }
+
+    // Aquí solo esperas que las tareas de cada empresa se hayan lanzado, pero no se bloquea cada una esperando a que terminen
+    join_all(company_tasks).await;
 
 }
 
@@ -167,6 +174,13 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                         Ok((StatusCode::OK, Some(response))) => {
                             println!("Puerto {}: Código: {:?}, Mensaje: {:?}", port, response.codigoRespuesta, response.mensajeRespuesta);
                         }
+                        Ok((StatusCode::BAD_GATEWAY, Some(response))) => {
+                            if let Some(mensaje) = &response.mensajeRespuesta {
+                                if mensaje == "Usuario no existe" {
+                                    println!("Usuario ya realizó una marcación")
+                                }
+                            }
+                        }
                         Ok((status, _)) => {
                             println!("Puerto {}: Respuesta inesperada: {}", port, status);
                         }
@@ -174,6 +188,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                             println!("Puerto {}: Error al actualizar estado: {}", port, e);
                         }
                     }
+                    
                 }
                 
                 let data_conection = ConectionStatusRequest {
@@ -184,6 +199,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                     connectionStatus: true,
                     lastConnectionTime: time_str
                 };
+
 
                 match update_conection_status(data_conection).await {
                     Ok((StatusCode::OK, Some(response))) => {
@@ -196,6 +212,8 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                         println!("Error al actualizar estado: {}", e);
                     }
                 }
+
+
                 time_config = 1;
             }
             Ok((StatusCode::UNAUTHORIZED, _)) => {
@@ -223,6 +241,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                     lastConnectionTime: "".to_string(),
                 };
 
+                
                 match update_conection_status(data_conection).await {
                     Ok((StatusCode::OK, Some(response))) => {
                         println!("Código: {:?}, Mensaje: {:?}", response.codigoRespuesta, response.mensajeRespuesta);
@@ -235,6 +254,7 @@ async fn handle_port_loop(port: u16, serial_number: String, id_company: String, 
                     }
                 }
                 println!("Puerto {}: Error en la solicitud: {}", port, e);
+                
                 time_config = 2;
             }
         }
@@ -269,14 +289,14 @@ fn log_to_csv(level: &str, message: &String) {
     }
 }
 
-async fn check_internet_connection() -> bool {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(3))
-        .build()
-        .unwrap();
+// async fn check_internet_connection() -> bool {
+//     let client = reqwest::Client::builder()
+//         .timeout(Duration::from_secs(3))
+//         .build()
+//         .unwrap();
 
-    match client.get("https://www.google.com").send().await {
-        Ok(resp) => resp.status().is_success(),
-        Err(_) => false,
-    }
-}
+//     match client.get("https://www.google.com").send().await {
+//         Ok(resp) => resp.status().is_success(),
+//         Err(_) => false,
+//     }
+// }
